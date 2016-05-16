@@ -14,5 +14,9 @@
     "dependencies": {
         "chess.js": "https://github.com/jhlywa/chess.js",
         "chessboardjs": "https://github.com/oakmac/chessboardjs"
-    }
+    },
+    "bugs": {
+        "url": "https://github.com/Flierr/chessengine/issues"
+    },
+    "license": "UNLICENSED"
 }
