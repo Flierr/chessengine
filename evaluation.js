@@ -1,22 +1,30 @@
 
+// evaluate a score for a given position. A positive score indicates the side to move is ahead.
+function NegaEval (board) {
+    var score = board[1] * Eval(board);
+    
+    return score;
+}
+
+
+
 // evaluate a score for a given position. A positive score indicates white is ahead.
 function Eval (board) {
 	
 	var score 	= MaterialParameter     * MaterialScore(board)
-                + ActivityParameter		* ActivityScore(board)
+                //+ ActivityParameter		* ActivityScore(board)
                 + PieceSquareParameter	* PieceSquareScore(board)
-                + KingSafetyParamter    * KingSafetyScore(board);
-                + PawnStructureParameter* PawnStructureScore(board);
+                //+ KingSafetyParamter    * KingSafetyScore(board)
+                //+ PawnStructureParameter* PawnStructureScore(board);
 
 	return score;	
 }
 
-
 // returns the material score of all pieces: + is white ahead, - is black ahead
 function MaterialScore (board) {
 	var score = 0;
-	for ( var boardcounter=0; boardcounter<board.length ; boardcounter++ ) {
-		switch (board.charAt(boardcounter)) {
+	for ( var boardcounter=0; boardcounter<board[0].length ; boardcounter++ ) {
+		switch (board[0].charAt(boardcounter)) {
 			case "k": score -= kingvalue; 	break;
 			case "q": score -= queenvalue;	break;
 			case "r": score -= rookvalue; 	break;
@@ -37,8 +45,8 @@ function MaterialScore (board) {
 //add or substract score for pieces standing on certain squares.
 function PieceSquareScore (board) {
 	var score = 0;	
-	for ( var boardcounter=0; boardcounter<board.length ; boardcounter++ ) {
-		switch (board.charAt(boardcounter)) {
+	for ( var boardcounter=0; boardcounter<board[0].length ; boardcounter++ ) {
+		switch (board[0].charAt(boardcounter)) {
 			case "k": 
                 var gamePhase = ( PieceValueCount(board) / staticpiecevalue );
                 score -= gamePhase * kingtable[63-boardcounter] + (1-gamePhase) * kingendtable[63-boardcounter]; 		
@@ -68,18 +76,18 @@ function KingSafetyScore (board) {
 
 	
     //vind eerst positie beide koningen.
-	for ( var boardcounter=0; boardcounter<board.length ; boardcounter++ ) {
-        if (board.charAt(boardcounter)=== "K") {
+	for ( var boardcounter=0; boardcounter<board[0].length ; boardcounter++ ) {
+        if (board[0].charAt(boardcounter)=== "K") {
             var whiteKingLoc = boardcounter;
         }
-        else if (board.charAt(boardcounter)=== "k") {
+        else if (board[0].charAt(boardcounter)=== "k") {
             var blackKingLoc = boardcounter;
         }
 	}
     
     //factor 1: PieceDistance
-    for ( var boardcounter=0; boardcounter<board.length ; boardcounter++ ) {
-       	switch (board.charAt(boardcounter)) {
+    for ( var boardcounter=0; boardcounter<board[0].length ; boardcounter++ ) {
+       	switch (board[0].charAt(boardcounter)) {
 			case "q": kingSafety[0] += queenDistance * PieceDistance(whiteKingLoc,boardcounter); 	break;
 			case "r": kingSafety[0] += rookDistance * PieceDistance(whiteKingLoc,boardcounter); 	break;
 			case "b": kingSafety[0] += bishopDistance[ Math.abs( bishopsafetydiagup[whiteKingLoc] - bishopsafetydiagup[boardcounter] ) ];
@@ -99,21 +107,21 @@ function KingSafetyScore (board) {
                   
     if (whiteKingCol===0) {
         for (i=0 ; i<15 ; i++) {
-            if (i%3!==0 && board.charAt(whiteKingLoc + kingShieldLoc[i])==="P") {
+            if (i%3!==0 && board[0].charAt(whiteKingLoc + kingShieldLoc[i])==="P") {
                 kingSafety[0] += kingShieldValue[i];
             }
         }
     }
     else if (whiteKingCol===7) {
         for (i=0 ; i<15 ; i++) {
-            if (i%3!==2 && board.charAt(whiteKingLoc + kingShieldLoc[i])==="P") {
+            if (i%3!==2 && board[0].charAt(whiteKingLoc + kingShieldLoc[i])==="P") {
                 kingSafety[0] += kingShieldValue[i];
             }
         }
     }
     else {      
         for (i=0 ; i<15 ; i++) {           
-            if ( board.charAt(whiteKingLoc + kingShieldLoc[i])==="P") {
+            if ( board[0].charAt(whiteKingLoc + kingShieldLoc[i])==="P") {
                 kingSafety[0] += kingShieldValue[i];
             }
         }       
@@ -123,21 +131,21 @@ function KingSafetyScore (board) {
     
     if (blackKingCol===0) {
         for (i=0 ; i<15 ; i++) {          
-            if ( i%3 !==2 && board.charAt(blackKingLoc - kingShieldLoc[i])==="p") {
+            if ( i%3 !==2 && board[0].charAt(blackKingLoc - kingShieldLoc[i])==="p") {
                 kingSafety[1] -= kingShieldValue[i];
             }
         }
     }
     else if (blackKingCol===7) {
         for (i=0 ; i<15 ; i++) {
-            if ( i%3 !==0 && board.charAt(blackKingLoc - kingShieldLoc[i])==="p") {
+            if ( i%3 !==0 && board[0].charAt(blackKingLoc - kingShieldLoc[i])==="p") {
                 kingSafety[1] -= kingShieldValue[i];
             }
         }
     }
     else {
         for (i=0 ; i<15 ; i++) {
-            if ( board.charAt(blackKingLoc - kingShieldLoc[i])==="p") {
+            if ( board[0].charAt(blackKingLoc - kingShieldLoc[i])==="p") {
                 kingSafety[1] -= kingShieldValue[i];
             }
         }
@@ -153,7 +161,61 @@ function KingSafetyScore (board) {
 
 // add or substract score for a good pawn structure
 function PawnStructureScore (board) {
+    
     var score = 0;
+    var whitePawns = new Array();
+    var blackPawns = new Array();
+    for ( var boardcounter=0; boardcounter<board[0].length ; boardcounter++ ) {
+        if (board[0].charAt(boardcounter)==="P") {
+            whitePawns.push(boardcounter);
+        }
+        else if (board[0].charAt(boardcounter)==="p") {
+            blackPawns.push(boardcounter);
+        }
+    }
+    
+    //white
+    score -= whitePawns.length * isolatedPawnValue; //assume all pawns are isolated, then compensate for each pawn that is not isolated
+    for (var i=0 ; i<whitePawns.length ; i++) {
+        for (var j=i+1 ; j<whitePawns.length ; j++) {
+            // factor 1: reduce score for doubled pawns
+            //find the first(if any) on the same column as pawn[i]
+            if (whitePawns[i]%8===whitePawns[j]%8) {
+                score -= doubledPawnValue;
+                break;
+            }
+        }
+        for (var j=0 ; j<whitePawns.length ; j++) {
+            // factor 2: add score for each pawn that is not isolated;
+            if (Math.abs(whitePawns[i]%8-whitePawns[j]%8)===1) {
+                score += isolatedPawnValue;
+                break;
+            }
+            
+        }
+            
+    }
+    
+    //black
+    score += blackPawns.length * isolatedPawnValue; //assume all pawns are isolated, then compensate for each pawn that is not isolated
+    for (var i=0 ; i<blackPawns.length ; i++) {
+        for (var j=i+1 ; j<blackPawns.length ; j++) {
+            // factor 1: reduce score for doubled pawns
+            //find the first(if any) on the same column as pawn[i]
+            if (blackPawns[i]%8===blackPawns[j]%8) {
+                score += doubledPawnValue;
+                break;
+            }      
+        }
+        for (var j=0 ; j<blackPawns.length ; j++) {
+            // factor 2: add score for each pawn that is not isolated;
+            if (Math.abs(blackPawns[i]%8-blackPawns[j]%8)===1) {
+                score -= isolatedPawnValue;
+                break;
+            }
+        }
+            
+    }
     
     return score;
 }
@@ -163,26 +225,26 @@ function PawnStructureScore (board) {
 // add or substract score for each empty square, small bonus if blocked by enemy piece
 function ActivityScore (board) {
 	var score = 0;
-	for ( var boardcounter=0; boardcounter<board.length ; boardcounter++ ) {
-		switch (board.charAt(boardcounter)) {
+	for ( var boardcounter=0; boardcounter<board[0].length ; boardcounter++ ) {
+		switch (board[0].charAt(boardcounter)) {
 			case "N": 
 				for (var i=0 ; i<knightsquares[boardcounter].length ; i++) {
-					if (board.charAt(boardcounter+knighthop[knightsquares[boardcounter][i]])==="e") {
+					if (board[0].charAt(boardcounter+knighthop[knightsquares[boardcounter][i]])==="e") {
 						score += ActiveKnightParameter;
 					}
 					// add a small score if blocking piece is black
-					else if ( "rnbqkp".includes(board.charAt(boardcounter+knighthop[knightsquares[boardcounter][i]])) ) {
+					else if ( "rnbqkp".includes(board[0].charAt(boardcounter+knighthop[knightsquares[boardcounter][i]])) ) {
 						score += ActiveAttackParameter;
 					}
 				}
 			break;
 			case "n":
 				for (var i=0 ; i<knightsquares[boardcounter].length ; i++) {
-					if (board.charAt(boardcounter+knighthop[knightsquares[boardcounter][i]])==="e") {
+					if (board[0].charAt(boardcounter+knighthop[knightsquares[boardcounter][i]])==="e") {
 						score -= ActiveKnightParameter;
 					}
 					// subtract a small score if blocking piece is white
-					else if ( "RNBQKP".includes(board.charAt(boardcounter+knighthop[knightsquares[boardcounter][i]])) ) {
+					else if ( "RNBQKP".includes(board[0].charAt(boardcounter+knighthop[knightsquares[boardcounter][i]])) ) {
 						score -= ActiveAttackParameter;
 					}
 				}
@@ -192,11 +254,10 @@ function ActivityScore (board) {
 					var j=0;
 					var block = false;
 					while ( j<bishopsquares[boardcounter][i] && !block) {
-
-                        if (board.charAt( boardcounter+(bishopDirection[i]*(j+1)) ) === "e" ) { 
+                        if (board[0].charAt( boardcounter+(bishopDirection[i]*(j+1)) ) === "e" ) { 
                             score += ActiveBishopParameter;
                         }
-                        else if ( "rnbqkp".includes( board.charAt( boardcounter+(bishopDirection[i]*(j+1)) ) ) ) {
+                        else if ( "rnbqkp".includes( board[0].charAt( boardcounter+(bishopDirection[i]*(j+1)) ) ) ) {
                             score += ActiveAttackParameter;
                             block = true;
                         }
@@ -213,10 +274,10 @@ function ActivityScore (board) {
 					var block = false;
 					while ( j<bishopsquares[boardcounter][i] && !block) {
 
-                        if (board.charAt( boardcounter+(bishopDirection[i]*(j+1)) ) === "e" ) { 
+                        if (board[0].charAt( boardcounter+(bishopDirection[i]*(j+1)) ) === "e" ) { 
                             score -= ActiveBishopParameter;
                         }
-                        else if ( "RNBQKP".includes( board.charAt( boardcounter+(bishopDirection[i]*(j+1)) ) ) ) {
+                        else if ( "RNBQKP".includes( board[0].charAt( boardcounter+(bishopDirection[i]*(j+1)) ) ) ) {
                             score -= ActiveAttackParameter;
                             block = true;
                         }
@@ -233,10 +294,10 @@ function ActivityScore (board) {
 					var j=0;
 					var block = false;
 					while ( j<rooksquares[i] && !block) {
-						if (board.charAt( boardcounter+(rookDirection[i]*(j+1)) ) === "e" ) { 
+						if (board[0].charAt( boardcounter+(rookDirection[i]*(j+1)) ) === "e" ) { 
                            score += ActiveRookParameter;
                         }
-                        else if ( "rnbqkp".includes( board.charAt( boardcounter+(rookDirection[i]*(j+1)) ) ) ) {
+                        else if ( "rnbqkp".includes( board[0].charAt( boardcounter+(rookDirection[i]*(j+1)) ) ) ) {
                             score += ActiveAttackParameter;
                             block = true;
                         }
@@ -253,10 +314,10 @@ function ActivityScore (board) {
 					var j=0;
 					var block = false;
 					while ( j<rooksquares[i] && !block) {
-						if (board.charAt( boardcounter+(rookDirection[i]*(j+1)) ) === "e" ) { 
+						if (board[0].charAt( boardcounter+(rookDirection[i]*(j+1)) ) === "e" ) { 
                             score -= ActiveRookParameter;
                         }
-                        else if ( "RNBQKP".includes( board.charAt( boardcounter+(rookDirection[i]*(j+1)) ) ) ) {
+                        else if ( "RNBQKP".includes( board[0].charAt( boardcounter+(rookDirection[i]*(j+1)) ) ) ) {
                             score -= ActiveAttackParameter;
                             block = true;
                         }
@@ -268,16 +329,16 @@ function ActivityScore (board) {
 				}	
 			break;
 			case "Q":
-				var queensquares = [7-(boardcounter%8),Math.floor(boardcounter/8),boardcounter%8,7-Math.floor(boardcounter/8)];
+				var rooksquares = [7-(boardcounter%8),Math.floor(boardcounter/8),boardcounter%8,7-Math.floor(boardcounter/8)];
 				//horizontal and vertical queenlines
 				for (var i=0 ; i<4 ; i++) {
 					var j=0;
 					var block = false;
-					while ( j<queensquares[i] && !block) {
-						if (board.charAt( boardcounter+(rookDirection[i]*(j+1)) ) === "e" ) { 
+					while ( j<rooksquares[i] && !block) {
+						if (board[0].charAt( boardcounter+(rookDirection[i]*(j+1)) ) === "e" ) { 
                            score += ActiveQueenParameter;
                         }
-                        else if ( "rnbqkp".includes( board.charAt( boardcounter+(rookDirection[i]*(j+1)) ) ) ) {
+                        else if ( "rnbqkp".includes( board[0].charAt( boardcounter+(rookDirection[i]*(j+1)) ) ) ) {
                             score += ActiveAttackParameter;
                             block = true;
                         }
@@ -293,10 +354,10 @@ function ActivityScore (board) {
 					var block = false;
 					while ( j<bishopsquares[boardcounter][i] && !block) {
 
-                        if (board.charAt( boardcounter+(bishopDirection[i]*(j+1)) ) === "e" ) { 
+                        if (board[0].charAt( boardcounter+(bishopDirection[i]*(j+1)) ) === "e" ) { 
                             score += ActiveQueenParameter;
                         }
-                        else if ( "rnbqkp".includes( board.charAt( boardcounter+(bishopDirection[i]*(j+1)) ) ) ) {
+                        else if ( "rnbqkp".includes( board[0].charAt( boardcounter+(bishopDirection[i]*(j+1)) ) ) ) {
                             score += ActiveAttackParameter;
                             block = true;
                         }
@@ -308,16 +369,16 @@ function ActivityScore (board) {
 				}	
 			break;
 			case "q":
-				var queensquares = [7-(boardcounter%8),Math.floor(boardcounter/8),boardcounter%8,7-Math.floor(boardcounter/8)];
+				var rooksquares = [7-(boardcounter%8),Math.floor(boardcounter/8),boardcounter%8,7-Math.floor(boardcounter/8)];
 				//horizontal and vertical queenlines
 				for (var i=0 ; i<4 ; i++) {
 					var j=0;
 					var block = false;
-					while ( j<queensquares[i] && !block) {
-						if (board.charAt( boardcounter+(rookDirection[i]*(j+1)) ) === "e" ) { 
+					while ( j<rooksquares[i] && !block) {
+						if (board[0].charAt( boardcounter+(rookDirection[i]*(j+1)) ) === "e" ) { 
                             score -= ActiveQueenParameter;
                         }
-                        else if ( "RNBQKP".includes( board.charAt( boardcounter+(rookDirection[i]*(j+1)) ) ) ) {
+                        else if ( "RNBQKP".includes( board[0].charAt( boardcounter+(rookDirection[i]*(j+1)) ) ) ) {
                             score -= ActiveAttackParameter;
                             block = true;
                         }
@@ -333,10 +394,10 @@ function ActivityScore (board) {
 					var block = false;
 					while ( j<bishopsquares[boardcounter][i] && !block) {
 
-                        if (board.charAt( boardcounter+(bishopDirection[i]*(j+1)) ) === "e" ) { 
+                        if (board[0].charAt( boardcounter+(bishopDirection[i]*(j+1)) ) === "e" ) { 
                             score -= ActiveQueenParameter;
                         }
-                        else if ( "RNBQKP".includes( board.charAt( boardcounter+(bishopDirection[i]*(j+1)) ) ) ) {
+                        else if ( "RNBQKP".includes( board[0].charAt( boardcounter+(bishopDirection[i]*(j+1)) ) ) ) {
                             score -= ActiveAttackParameter;
                             block = true;
                         }

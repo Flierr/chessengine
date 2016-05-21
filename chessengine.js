@@ -1,91 +1,122 @@
-
+/*
+ * V 1.0.3 of Flier's javascript chess engine.
+ * Author: Yorrick Vissers
+ * Github: https://github.com/Flierr/chessengine
+ * TODO: 1) Negamax Search 2) Improve FindPossibleMoves to use chess.js .moves() functionality and simplify. 3) Refactor to Negamax / Alphabeta search
+ * Known limitations and bugs: Does not include any form of pawn promotion, will be solved by using chess.js .moves() functionality.
+ */
 var tekst = $('#tekst');
 var test1 = $('#test1');
 var test2 = $('#test2');
 var fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"; // starting position fen
-var fen = "8/2b3k1/8/4K3/8/2B5/8/8 w - - 0 1"; //testing position fen
-var board = Fen2Board();
+//var fen = "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2"; //testing position fen
+var board = Fen2Board(fen);
 
 $('#Btn').on('click', function() {
 tekst.html(	
-			'<br> Materiaal Score: ' + MaterialScore(board) + 
-			'<br> Activiteit Score:  ' + ActivityScore(board) + 
+			'<br> Material Score: ' + MaterialScore(board) + 
+			'<br> Activity Score:  ' + ActivityScore(board) + 
 			'<br> PieceSquare Score: ' + PieceSquareScore(board) +
             '<br> KingSafety Score: ' + KingSafetyScore(board) +
             '<br> PawnStructure Score: ' + PawnStructureScore(board) +
-			'<br> Aantal velden op bord: ' + board.length + 
 			'<br> FEN:  ' + fen + 
-			'<br>Bord: ' + board +
-			'<br> Aantal stukken: ' + PieceCount(board) + 
+			'<br>Board: ' + board[0] +
+			'<br>Piece Count: ' + PieceCount(board) + 
             '<br>Fase: ' + PieceValueCount(board) + ' / ' + staticpiecevalue +
 			'<br>Overall eval: ' + Eval(board) +
-            '<br>Ply: ' + Ply() +
             '<br>Possible moves: ' + FindPossibleMoves(board) +
-            '<br>Best move: ' + FindBestMove(board)            
+            '<br>Nr Pos moves: ' + FindPossibleMoves(board).length +
+            '<br>Best move: ' + FindBestMove(board)  +
+            '<br>Negamax: ' + PlayBestMove(board)
 			);
 });
 
 
-
 function MakeMove(board,move) {
-    var tempchess = new Chess("fen");
+    var tempchess = new Chess(fen);
     var fromSquare = move.split("-").shift();
     var toSquare = move.split("-").pop();
-    
-    tempchess.move({from: boardsquares[fromSquare], to: boardsquares[toSquare] });
+    //check for kingside castle
+    if ( (fromSquare === 60 && toSquare ===62 && board[2].includes("K")) || (fromSquare === 4 && toSquare === 6 && board[2].includes("k")) ) {
+        tempchess.move('O-O');
+    } 
+    //check if move is queenside castle
+    else if ( (fromSquare === 60 && toSquare ===58 && board[2].includes("Q")) || (fromSquare === 4 && toSquare === 2 && board[2].includes("q")) ) {
+        tempchess.move('O-O-O');
+    }
+    //normal moves
+    else {    
+        tempchess.move({from: boardsquares[fromSquare], to: boardsquares[toSquare] });
+    }
     board = Fen2Board(tempchess.fen());
-    
+    result = [board,tempchess];
+    return result;
+}
+function UnMakeMove(board,tempchess) {
+    tempchess.undo();
+    board = Fen2Board(tempchess.fen());
     return board;
 }
 
 
 function FindBestMove(board) {
-    var horizon = 1;
+    
     var movescore = new Array();
     posmoves = FindPossibleMoves(board);
     
     for (var i=0 ; i<posmoves.length ; i++ ) {
-        newboard = MakeMove(board,posmoves[i]);
-        movescore.push(Eval(newboard));
+        var newboard = MakeMove(board,posmoves[i]);
+        movescore.push(Eval(newboard[0]));
     }
     var iMax,x,i;
     var indexOfMaxMoveScore = movescore.reduce((iMax, x, i, movescore) => x > movescore[iMax] ? i : iMax, 0);
     var bestMove = posmoves[indexOfMaxMoveScore];
-    return bestMove;
+    return movescore;
 }
-
 
 
 function FindPossibleMoves(board) {
     var posmoves = new Array();
     
-    for ( var boardcounter=0; boardcounter<board.length ; boardcounter++ ) {
-		//if white is to move, find possible moves for white
-        if ( Ply()%2===0 ) {
-            switch (board.charAt(boardcounter)) {
+    //if white is to move, find possible moves for white
+    if ( board[1]===1 ) {
+        //check enpassent move
+        if (board[3]!=='-') {
+            var epSquare = boardsquares.indexOf(board[3]);
+            //check for capture right if epsquare is not on a-file
+            if ( epSquare !==0 && board[0].charAt(epSquare+7)==="P") {
+                posmoves.push((epSquare+7) + '-' + epSquare);
+            }
+            //check for capture left if epsquare is not on a-file
+            if (epSquare !==7 && board[0].charAt(epSquare+9)==="P") {
+                posmoves.push((epSquare+9) + '-' + epSquare);
+            }
+        }
+        for ( var boardcounter=0; boardcounter<board[0].length ; boardcounter++ ) {
+            switch (board[0].charAt(boardcounter)) {
             case "P":
                 //advance pawn by one square
-                if ( board.charAt( boardcounter-8)==="e") {
-                    posmoves.push(boardcounter + '-' + (boardcounter-8));
+                if ( board[0].charAt( boardcounter-8)==="e") {
+                    posmoves.push( boardcounter + '-' + (boardcounter-8));
                 }
                 //check for capture right if not on h-file
-                if ( boardcounter%8!==7 && "rnbqkp".includes(board.charAt(boardcounter-7)) ) {
-                    posmoves.push(boardcounter + '-' + (boardcounter-7));
+                if ( boardcounter%8!==7 && "rnbqkp".includes(board[0].charAt(boardcounter-7)) ) {
+                    posmoves.push( boardcounter + '-' + (boardcounter-7));
                 }
                 //check for capture left if not on a-file
-                if ( boardcounter%8!==0 && "rnbqkp".includes(board.charAt(boardcounter-9)) ) {
-                    posmoves.push(boardcounter + '-' + (boardcounter-9));
+                if ( boardcounter%8!==0 && "rnbqkp".includes(board[0].charAt(boardcounter-9)) ) {
+                    posmoves.push( boardcounter + '-' + (boardcounter-9));
                 }
                 //advance pawn by two squares if at starting pos and pos in front is empty
-                if ( 7-Math.floor(boardcounter/8)===1 && board.charAt( boardcounter-16)==="e" && board.charAt( boardcounter-8)==="e") {
-                    posmoves.push(boardcounter + '-' + (boardcounter-16));
+                if ( 7-Math.floor(boardcounter/8)===1 && board[0].charAt( boardcounter-16)==="e" && board[0].charAt( boardcounter-8)==="e") {
+                    posmoves.push( boardcounter + '-' + (boardcounter-16));
                 }               
                 break;
             case "N": 
 				for (var i=0 ; i<knightsquares[boardcounter].length ; i++) {
-					if ( "ernbqkp".includes(board.charAt(boardcounter+knighthop[knightsquares[boardcounter][i]])) ) {
+					if ( "ernbqkp".includes(board[0].charAt(boardcounter+knighthop[knightsquares[boardcounter][i]])) ) {
 						//add move to possible moves
-                        posmoves.push(boardcounter + '-' + (boardcounter+knighthop[knightsquares[boardcounter][i]]));
+                        posmoves.push( boardcounter + '-' + (boardcounter+knighthop[knightsquares[boardcounter][i]]) );
 					}
                     else {
                         block = true;
@@ -96,58 +127,16 @@ function FindPossibleMoves(board) {
                 for (var i=0 ; i<4 ; i++) {
 					var j=0;
 					var block = false;
-					while ( j<bishopsquares[boardcounter][i] && !block) {
-						//up right
-						if ( i===0 ) {
-                            if (board.charAt( boardcounter-(7*(j+1)) ) === "e" ) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(7*(j+1))) );
-                            }
-                            else if ( "rnbqkp".includes( board.charAt( boardcounter-(7*(j+1)) ) ) ) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(7*(j+1))) );
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
+					while ( j<bishopsquares[boardcounter][i] && !block) {                       
+                        if (board[0].charAt( boardcounter+(bishopDirection[i]*(j+1)) ) === "e" ) {
+                            posmoves.push( boardcounter + '-' + (boardcounter+(bishopDirection[i]*(j+1))) );
                         }
-						//up left
-						else if ( i===1 ) {
-                            if ( board.charAt( boardcounter-(9*(j+1)) ) === "e" ) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(9*(j+1))) );
-                            }
-                            else if ( "rnbqkp".includes(board.charAt( boardcounter-(9*(j+1)) ))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(9*(j+1))) );
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
+                        else if ( "rnbqkp".includes( board[0].charAt( boardcounter+(bishopDirection[i]*(j+1)) ) ) ) {
+                            posmoves.push( boardcounter + '-' + (boardcounter+(bishopDirection[i]*(j+1))) );
+                            block = true;
                         }
-                        //down left
-						else if ( i===2) {
-                            if (board.charAt( boardcounter+(7*(j+1)) ) === "e") {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(7*(j+1))) );
-                            }
-                            else if ( "rnbqkp".includes(board.charAt( boardcounter+(7*(j+1))))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(7*(j+1))) );
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
-                        }
-						//down right
-						else if ( i===3 ) {
-                            if (board.charAt( boardcounter+(9*(j+1)) ) === "e" ) {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(9*(j+1))) );
-                            }
-                            else if ( "rnbqkp".includes(board.charAt( boardcounter+(9*(j+1)) ))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(9*(j+1))) );
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
+                        else {
+                            block = true;
                         }
                         j++;
 					}	
@@ -159,58 +148,16 @@ function FindPossibleMoves(board) {
 					var j=0;
 					var block = false;
 					while ( j<rooksquares[i] && !block) {
-						//right
-						if ( i===0 ) {
-                            if (board.charAt( boardcounter + (j+1) ) === "e") {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(j+1)));
-                            }
-                            else if ("rnbqkp".includes(board.charAt(( boardcounter + (j+1) )))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(j+1)));
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
-						}
-						//up
-                        if ( i===1 ) {
-                            if (board.charAt( boardcounter -(8*(j+1)) ) === "e") {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(8*(j+1))));
-                            }
-                            else if ("rnbqkp".includes(board.charAt(( boardcounter -(8*(j+1)) )))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(8*(j+1))));
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
-						}
-						//left
-                        if ( i===2 ) {
-                            if (board.charAt( boardcounter - (j+1) ) === "e") {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(j+1)));
-                            }
-                            else if ("rnbqkp".includes(board.charAt(( boardcounter - (j+1) )))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(j+1)));
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
-						}
-						//down
-                        if ( i===3 ) {
-                            if (board.charAt( boardcounter +(8*(j+1)) ) === "e") {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(8*(j+1))));
-                            }
-                            else if ("rnbqkp".includes(board.charAt(( boardcounter +(8*(j+1)) )))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(8*(j+1))));
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
-						}
+						if (board[0].charAt( boardcounter +(rookDirection[i]*(j+1)) ) === "e") {
+                            posmoves.push( boardcounter + '-' + (boardcounter +(rookDirection[i]*(j+1))) );
+                        }
+                        else if ("rnbqkp".includes(board[0].charAt(boardcounter +(rookDirection[i]*(j+1)))) ) {
+                            posmoves.push(boardcounter + '-' + (boardcounter+(j+1)));
+                            block = true;
+                        }
+                        else {
+                            block = true;
+                        }
 						j++;
 					}	
 				}
@@ -221,116 +168,32 @@ function FindPossibleMoves(board) {
 					var j=0;
 					var block = false;
 					while ( j<rooksquares[i] && !block) {
-						//right
-						if ( i===0 ) {
-                            if (board.charAt( boardcounter + (j+1) ) === "e") {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(j+1)));
-                            }
-                            else if ("rnbqkp".includes(board.charAt(( boardcounter + (j+1) )))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(j+1)));
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
-						}
-						//up
-                        if ( i===1 ) {
-                            if (board.charAt( boardcounter -(8*(j+1)) ) === "e") {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(8*(j+1))));
-                            }
-                            else if ("rnbqkp".includes(board.charAt(( boardcounter -(8*(j+1)) )))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(8*(j+1))));
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
-						}
-						//left
-                        if ( i===2 ) {
-                            if (board.charAt( boardcounter - (j+1) ) === "e") {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(j+1)));
-                            }
-                            else if ("rnbqkp".includes(board.charAt(( boardcounter - (j+1) )))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(j+1)));
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
-						}
-						//down
-                        if ( i===3 ) {
-                            if (board.charAt( boardcounter +(8*(j+1)) ) === "e") {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(8*(j+1))));
-                            }
-                            else if ("rnbqkp".includes(board.charAt(( boardcounter +(8*(j+1)) )))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(8*(j+1))));
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
-						}
+						if (board[0].charAt( boardcounter +(rookDirection[i]*(j+1)) ) === "e") {
+                            posmoves.push( boardcounter + '-' + (boardcounter +(rookDirection[i]*(j+1))) );
+                        }
+                        else if ("rnbqkp".includes(board[0].charAt(boardcounter +(rookDirection[i]*(j+1)))) ) {
+                            posmoves.push(boardcounter + '-' + (boardcounter+(j+1)));
+                            block = true;
+                        }
+                        else {
+                            block = true;
+                        }
 						j++;
 					}	
 				}
                 for (var i=0 ; i<4 ; i++) {
 					var j=0;
 					var block = false;
-					while ( j<bishopsquares[boardcounter][i] && !block) {
-						//up right
-						if ( i===0 ) {
-                            if (board.charAt( boardcounter-(7*(j+1)) ) === "e" ) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(7*(j+1))) );
-                            }
-                            else if ( "rnbqkp".includes( board.charAt( boardcounter-(7*(j+1)) ) ) ) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(7*(j+1))) );
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
+					while ( j<bishopsquares[boardcounter][i] && !block) {                       
+                        if (board[0].charAt( boardcounter+(bishopDirection[i]*(j+1)) ) === "e" ) {
+                            posmoves.push( boardcounter + '-' + (boardcounter+(bishopDirection[i]*(j+1))) );
                         }
-						//up left
-						else if ( i===1 ) {
-                            if ( board.charAt( boardcounter-(9*(j+1)) ) === "e" ) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(9*(j+1))) );
-                            }
-                            else if ( "rnbqkp".includes(board.charAt( boardcounter-(9*(j+1)) ))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(9*(j+1))) );
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
+                        else if ( "rnbqkp".includes( board[0].charAt( boardcounter+(bishopDirection[i]*(j+1)) ) ) ) {
+                            posmoves.push( boardcounter + '-' + (boardcounter+(bishopDirection[i]*(j+1))) );
+                            block = true;
                         }
-                        //down left
-						else if ( i===2) {
-                            if (board.charAt( boardcounter+(7*(j+1)) ) === "e") {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(7*(j+1))) );
-                            }
-                            else if ( "rnbqkp".includes(board.charAt( boardcounter+(7*(j+1))))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(7*(j+1))) );
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
-                        }
-						//down right
-						else if ( i===3 ) {
-                            if (board.charAt( boardcounter+(9*(j+1)) ) === "e" ) {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(9*(j+1))) );
-                            }
-                            else if ( "rnbqkp".includes(board.charAt( boardcounter+(9*(j+1)) ))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(9*(j+1))) );
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
+                        else {
+                            block = true;
                         }
                         j++;
 					}	
@@ -338,37 +201,57 @@ function FindPossibleMoves(board) {
                 break;
             case "K":
                 for (var i=0 ; i<kingsquares[boardcounter].length ; i++) {
-                    if ("ernbqkp".includes(board.charAt(boardcounter+kingsquares[boardcounter][i]))) {
+                    if ("ernbqkp".includes(board[0].charAt(boardcounter+kingsquares[boardcounter][i]))) {
                         posmoves.push(boardcounter + '-' + (boardcounter+kingsquares[boardcounter][i]));
                     }
+                }
+                //check if castling is a possible move
+                if (board[2].includes("K") && board[0].charAt(61)==="e" && board[0].charAt(62)==="e") {
+                    posmoves.push(60 + '-' + 62);
+                }
+                else if (board[2].includes("Q") && board[0].charAt(59)==="e" && board[0].charAt(58)==="e" && board[0].charAt(57)==="e") {
+                    posmoves.push(60 + '-' + 58);
                 }
                 break;
             }
         }
+    }
         //if black is to move, find possible moves for black
-        else if ( Ply()%2===1 ) {
-            switch (board.charAt(boardcounter)) {
+    else if ( board[1]===-1 ) {
+        if (board[3]!=='-') {
+            var epSquare = boardsquares.indexOf(board[3]);
+            //check for capture right if epsquare is not on a-file
+            if ( epSquare !==0 && board[0].charAt(epSquare-9)==="p") {
+                posmoves.push((epSquare-9) + '-' + epSquare);
+            }
+            //check for capture left if epsquare is not on a-file
+            if (epSquare !==7 && board[0].charAt(epSquare-7)==="p") {
+                posmoves.push((epSquare-7) + '-' + epSquare);
+            }
+        }
+        for ( var boardcounter=0; boardcounter<board[0].length ; boardcounter++ ) {
+            switch (board[0].charAt(boardcounter)) {
             case "p":
                 //advance pawn by one square
-                if ( board.charAt( boardcounter+8)==="e") {
+                if ( board[0].charAt( boardcounter+8)==="e") {
                     posmoves.push(boardcounter + '-' + (boardcounter+8));
                 }
                 //check for capture right if not on h-file
-                if ( boardcounter%8!==7 && "RNBQKP".includes(board.charAt(boardcounter+9)) ) {
+                if ( boardcounter%8!==7 && "RNBQKP".includes(board[0].charAt(boardcounter+9)) ) {
                     posmoves.push(boardcounter + '-' + (boardcounter+9));
                 }
                 //check for capture left if not on a-file
-                if ( boardcounter%8!==0 && "RNBQKP".includes(board.charAt(boardcounter+7)) ) {
+                if ( boardcounter%8!==0 && "RNBQKP".includes(board[0].charAt(boardcounter+7)) ) {
                     posmoves.push(boardcounter + '-' + (boardcounter+7));
                 }
                 //advance pawn by two squares if at starting pos and pos in front is empty
-                if ( Math.floor(boardcounter/8)===1 && board.charAt( boardcounter+16)==="e" && board.charAt( boardcounter+8)==="e") {
+                if ( Math.floor(boardcounter/8)===1 && board[0].charAt( boardcounter+16)==="e" && board[0].charAt( boardcounter+8)==="e") {
                     posmoves.push(boardcounter + '-' + (boardcounter+16));
                 }               
                 break;
             case "n": 
 				for (var i=0 ; i<knightsquares[boardcounter].length ; i++) {
-					if ( "eRNBQKP".includes(board.charAt(boardcounter+knighthop[knightsquares[boardcounter][i]])) ) {
+					if ( "eRNBQKP".includes(board[0].charAt(boardcounter+knighthop[knightsquares[boardcounter][i]])) ) {
 						//add move to possible moves
                         posmoves.push(boardcounter + '-' + (boardcounter+knighthop[knightsquares[boardcounter][i]]));
 					}
@@ -381,58 +264,16 @@ function FindPossibleMoves(board) {
                 for (var i=0 ; i<4 ; i++) {
 					var j=0;
 					var block = false;
-					while ( j<bishopsquares[boardcounter][i] && !block) {
-						//up right
-						if ( i===0 ) {
-                            if (board.charAt( boardcounter-(7*(j+1)) ) === "e" ) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(7*(j+1))) );
-                            }
-                            else if ( "RNBQKP".includes( board.charAt( boardcounter-(7*(j+1)) ) ) ) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(7*(j+1))) );
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
+					while ( j<bishopsquares[boardcounter][i] && !block) {                       
+                        if (board[0].charAt( boardcounter+(bishopDirection[i]*(j+1)) ) === "e" ) {
+                            posmoves.push( boardcounter + '-' + (boardcounter+(bishopDirection[i]*(j+1))) );
                         }
-						//up left
-						else if ( i===1 ) {
-                            if ( board.charAt( boardcounter-(9*(j+1)) ) === "e" ) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(9*(j+1))) );
-                            }
-                            else if ( "RNBQKP".includes(board.charAt( boardcounter-(9*(j+1)) ))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(9*(j+1))) );
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
+                        else if ( "RNBQKP".includes( board[0].charAt( boardcounter+(bishopDirection[i]*(j+1)) ) ) ) {
+                            posmoves.push( boardcounter + '-' + (boardcounter+(bishopDirection[i]*(j+1))) );
+                            block = true;
                         }
-                        //down left
-						else if ( i===2) {
-                            if (board.charAt( boardcounter+(7*(j+1)) ) === "e") {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(7*(j+1))) );
-                            }
-                            else if ( "RNBQKP".includes(board.charAt( boardcounter+(7*(j+1))))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(7*(j+1))) );
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
-                        }
-						//down right
-						else if ( i===3 ) {
-                            if (board.charAt( boardcounter+(9*(j+1)) ) === "e" ) {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(9*(j+1))) );
-                            }
-                            else if ( "RNBQKP".includes(board.charAt( boardcounter+(9*(j+1)) ))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(9*(j+1))) );
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
+                        else {
+                            block = true;
                         }
                         j++;
 					}	
@@ -444,58 +285,16 @@ function FindPossibleMoves(board) {
 					var j=0;
 					var block = false;
 					while ( j<rooksquares[i] && !block) {
-						//right
-						if ( i===0 ) {
-                            if (board.charAt( boardcounter + (j+1) ) === "e") {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(j+1)));
-                            }
-                            else if ("RNBQKP".includes(board.charAt(( boardcounter + (j+1) )))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(j+1)));
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
-						}
-						//up
-                        if ( i===1 ) {
-                            if (board.charAt( boardcounter -(8*(j+1)) ) === "e") {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(8*(j+1))));
-                            }
-                            else if ("RNBQKP".includes(board.charAt(( boardcounter -(8*(j+1)) )))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(8*(j+1))));
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
-						}
-						//left
-                        if ( i===2 ) {
-                            if (board.charAt( boardcounter - (j+1) ) === "e") {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(j+1)));
-                            }
-                            else if ("RNBQKP".includes(board.charAt(( boardcounter - (j+1) )))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(j+1)));
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
-						}
-						//down
-                        if ( i===3 ) {
-                            if (board.charAt( boardcounter +(8*(j+1)) ) === "e") {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(8*(j+1))));
-                            }
-                            else if ("RNBQKP".includes(board.charAt(( boardcounter +(8*(j+1)) )))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(8*(j+1))));
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
-						}
+						if (board[0].charAt( boardcounter +(rookDirection[i]*(j+1)) ) === "e") {
+                            posmoves.push( boardcounter + '-' + (boardcounter +(rookDirection[i]*(j+1))) );
+                        }
+                        else if ("RNBQKP".includes(board[0].charAt(boardcounter +(rookDirection[i]*(j+1)))) ) {
+                            posmoves.push(boardcounter + '-' + (boardcounter+(j+1)));
+                            block = true;
+                        }
+                        else {
+                            block = true;
+                        }
 						j++;
 					}	
 				}
@@ -506,116 +305,32 @@ function FindPossibleMoves(board) {
 					var j=0;
 					var block = false;
 					while ( j<rooksquares[i] && !block) {
-						//right
-						if ( i===0 ) {
-                            if (board.charAt( boardcounter + (j+1) ) === "e") {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(j+1)));
-                            }
-                            else if ("RNBQKP".includes(board.charAt(( boardcounter + (j+1) )))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(j+1)));
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
-						}
-						//up
-                        if ( i===1 ) {
-                            if (board.charAt( boardcounter -(8*(j+1)) ) === "e") {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(8*(j+1))));
-                            }
-                            else if ("RNBQKP".includes(board.charAt(( boardcounter -(8*(j+1)) )))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(8*(j+1))));
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
-						}
-						//left
-                        if ( i===2 ) {
-                            if (board.charAt( boardcounter - (j+1) ) === "e") {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(j+1)));
-                            }
-                            else if ("RNBQKP".includes(board.charAt(( boardcounter - (j+1) )))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(j+1)));
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
-						}
-						//down
-                        if ( i===3 ) {
-                            if (board.charAt( boardcounter +(8*(j+1)) ) === "e") {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(8*(j+1))));
-                            }
-                            else if ("RNBQKP".includes(board.charAt(( boardcounter +(8*(j+1)) )))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(8*(j+1))));
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
-						}
+						if (board[0].charAt( boardcounter +(rookDirection[i]*(j+1)) ) === "e") {
+                            posmoves.push( boardcounter + '-' + (boardcounter +(rookDirection[i]*(j+1))) );
+                        }
+                        else if ("RNBQKP".includes(board[0].charAt(boardcounter +(rookDirection[i]*(j+1)))) ) {
+                            posmoves.push(boardcounter + '-' + (boardcounter+(j+1)));
+                            block = true;
+                        }
+                        else {
+                            block = true;
+                        }
 						j++;
 					}	
 				}
                 for (var i=0 ; i<4 ; i++) {
 					var j=0;
 					var block = false;
-					while ( j<bishopsquares[boardcounter][i] && !block) {
-						//up right
-						if ( i===0 ) {
-                            if (board.charAt( boardcounter-(7*(j+1)) ) === "e" ) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(7*(j+1))) );
-                            }
-                            else if ( "RNBQKP".includes( board.charAt( boardcounter-(7*(j+1)) ) ) ) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(7*(j+1))) );
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
+					while ( j<bishopsquares[boardcounter][i] && !block) {                       
+                        if (board[0].charAt( boardcounter+(bishopDirection[i]*(j+1)) ) === "e" ) {
+                            posmoves.push( boardcounter + '-' + (boardcounter+(bishopDirection[i]*(j+1))) );
                         }
-						//up left
-						else if ( i===1 ) {
-                            if ( board.charAt( boardcounter-(9*(j+1)) ) === "e" ) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(9*(j+1))) );
-                            }
-                            else if ( "RNBQKP".includes(board.charAt( boardcounter-(9*(j+1)) ))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter-(9*(j+1))) );
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
+                        else if ( "RNBQKP".includes( board[0].charAt( boardcounter+(bishopDirection[i]*(j+1)) ) ) ) {
+                            posmoves.push( boardcounter + '-' + (boardcounter+(bishopDirection[i]*(j+1))) );
+                            block = true;
                         }
-                        //down left
-						else if ( i===2) {
-                            if (board.charAt( boardcounter+(7*(j+1)) ) === "e") {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(7*(j+1))) );
-                            }
-                            else if ( "RNBQKP".includes(board.charAt( boardcounter+(7*(j+1))))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(7*(j+1))) );
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
-                        }
-						//down right
-						else if ( i===3 ) {
-                            if (board.charAt( boardcounter+(9*(j+1)) ) === "e" ) {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(9*(j+1))) );
-                            }
-                            else if ( "RNBQKP".includes(board.charAt( boardcounter+(9*(j+1)) ))) {
-                                posmoves.push(boardcounter + '-' + (boardcounter+(9*(j+1))) );
-                                block = true;
-                            }
-                            else {
-                                block = true;
-                            }
+                        else {
+                            block = true;
                         }
                         j++;
 					}	
@@ -623,7 +338,7 @@ function FindPossibleMoves(board) {
                 break;
             case "k":
                 for (var i=0 ; i<kingsquares[boardcounter].length ; i++) {
-                    if ("eRNBQKP".includes(board.charAt(boardcounter+kingsquares[boardcounter][i]))) {
+                    if ("eRNBQKP".includes(board[0].charAt(boardcounter+kingsquares[boardcounter][i]))) {
                         posmoves.push(boardcounter + '-' + (boardcounter+kingsquares[boardcounter][i]));
                     }
                 }
@@ -635,61 +350,41 @@ function FindPossibleMoves(board) {
 }
 
 
+function Fen2Board(fen) {
+    
+    var fenSplit = fen.split(" ");
 
-function Fen2Board() {
-	
-	var board = "";
-	var fenshort = fen.substring(0, fen.indexOf(' '));
-	for (var fenstring=0; fenstring<fenshort.length; fenstring++) {
-		switch (fenshort.charAt(fenstring)) {
-			case "k": board = board + "k"; break;
-			case "q": board = board + "q"; break;
-			case "r": board = board + "r"; break;
-			case "b": board = board + "b"; break;
-			case "n": board = board + "n"; break;
-			case "p": board = board + "p"; break;
-			case "K": board = board + "K"; break;
-			case "Q": board = board + "Q"; break;
-			case "R": board = board + "R"; break;
-			case "B": board = board + "B"; break;
-			case "N": board = board + "N"; break;
-			case "P": board = board + "P"; break;
-			case "1": board = board + "e"; break;
-			case "2": board = board + "ee"; break;
-			case "3": board = board + "eee"; break;
-			case "4": board = board + "eeee"; break;
-			case "5": board = board + "eeeee"; break;
-			case "6": board = board + "eeeeee"; break;
-			case "7": board = board + "eeeeeee"; break;
-			case "8": board = board + "eeeeeeee"; break;
-		}
+	var boardstring = "";
+	for (var fenstring=0; fenstring<fenSplit[0].length; fenstring++) {
+        if ("kqrbnpKQRBNP".includes(fenSplit[0].charAt(fenstring))) {
+            boardstring += fenSplit[0].charAt(fenstring);
+        }
+        else if ("12345678".includes(fenSplit[0].charAt(fenstring))) {
+            for (var i=0 ; i<fenSplit[0].charAt(fenstring) ; i++) {
+                boardstring += "e";
+            }
+        }
 	}
-	return board;
-}
-
-
-
-
-// 0 is beginstelling, even is wit aan zet, odd zwart aan zet.
-function Ply() {
-    var ply = 0;
-    if (fen.includes("w")) {
-        //do nothing
+    var side;
+    if (fenSplit[1]==="w") {
+        side = 1;
     }
     else {
-        ply++;
+        side = -1;
     }
-	ply = +ply + 2*((+fen.split(" ").pop())-1) ;
-	return ply;
+    var rokade = fenSplit[2];
+    var ep = fenSplit[3];
+    var moveCount = fenSplit[5];
+    var chessPosition = new Chess(fen);
+    board = [boardstring,side,rokade,ep,moveCount,chessPosition];
+	return board;
 }
-
-
 	
-//bepaal totaal aantal stukken op bord
+//Count the total nr of pieces on board
 function PieceCount(board) {
 	var count = 0;
-	for ( var boardcounter=0; boardcounter<board.length ; boardcounter++ ) {
-		if ( "kqrbnpKQRBNP".includes(board.charAt(boardcounter)) ) {
+	for ( var boardcounter=0; boardcounter<board[0].length ; boardcounter++ ) {
+		if ( "kqrbnpKQRBNP".includes(board[0].charAt(boardcounter)) ) {
         	count++;
 		}
     }
@@ -699,8 +394,8 @@ function PieceCount(board) {
 //bepaal totaal waarde stukken op bord minus de koningen
 function PieceValueCount(board) {
 	var value = 0;
-	for ( var boardcounter=0; boardcounter<board.length ; boardcounter++ ) {
-		switch (board.charAt(boardcounter)) {
+	for ( var boardcounter=0; boardcounter<board[0].length ; boardcounter++ ) {
+		switch (board[0].charAt(boardcounter)) {
 
 			case "Q":
 			case "q":
@@ -732,4 +427,45 @@ function PieceDistance (loc1,loc2) {
     var colDistance = Math.abs((loc1%8)-(loc2%8));
     var distance =  + rowDistance + colDistance;
     return distance;
+}
+
+
+
+function PlayBestMove(board) {
+    var bestMove = "";
+    var horizon = 3;
+    posmoves = FindPossibleMoves(board);
+    var bestValue = -99999;
+    for (var i=0 ; i<posmoves.length ; i++ ) {
+        var result = MakeMove(board,posmoves[i]);
+        board = result[0];
+        var score = NegaMax(board,horizon);
+        board = UnMakeMove(board,result[1]);
+        
+        if (score > bestValue) {
+            bestValue = score;
+            
+        }
+    }
+    return bestValue;
+}
+
+
+function NegaMax (board,depth) {
+    if (depth===0) {       
+        return NegaEval(board);
+    }
+    posmoves = FindPossibleMoves(board);
+    var bestValue = -99999;
+    for (var i=0 ; i<posmoves.length ; i++ ) {
+        var result = MakeMove(board,posmoves[i]);
+        board = result[0];
+        var score = -NegaMax(board,depth-1);
+        board = UnMakeMove(board,result[1]);
+        
+        if (score > bestValue) {
+            bestValue = score;
+        }
+    }
+    return bestValue;
 }

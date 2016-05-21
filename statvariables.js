@@ -178,3 +178,6 @@ var kingShieldLoc = [   -25,-24,-23,
                         -9 , -8, -7,
                         -1 ,  0, -1,
                          7 ,  8,  9   ];
+                     
+var isolatedPawnValue = 5;
+var doubledPawnValue = 4;

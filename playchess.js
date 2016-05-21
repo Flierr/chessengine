@@ -1,16 +1,16 @@
 	
-var board,
+var board1,
   game = new Chess(),
   statusEl = $('#status'),
   fenEl = $('#fen'),
   pgnEl = $('#pgn');
 
 var removeGreySquares = function() {
-  $('#board .square-55d63').css('background', '');
+  $('#board1 .square-55d63').css('background', '');
 };
 
 var greySquare = function(square) {
-  var squareEl = $('#board .square-' + square);
+  var squareEl = $('#board1 .square-' + square);
   
   var background = '#a9a9a9';
   if (squareEl.hasClass('black-3c85d') === true) {
@@ -69,11 +69,11 @@ var onMouseoutSquare = function(square, piece) {
 };
 
 var onSnapEnd = function() {
-  board.position(game.fen());
+  board1.position(game.fen());
 };
 
 var updateStatus = function() {
-    var status = '';
+  var status = '';
 
   var moveColor = 'White';
   if (game.turn() === 'b') {
@@ -115,19 +115,19 @@ var cfg = {
   onSnapEnd: onSnapEnd
 };
 
-board = ChessBoard('board', cfg);
+board1 = ChessBoard('board1', cfg);
 updateStatus();
 	
 	
 //Btn0 resets the board, the game, pgn	
 $('#Btn0').on('click', function() {
-board = ChessBoard('board', cfg);
+board1 = ChessBoard('board1', cfg);
 game = new Chess();
-pgnn.html("");
+pgnE1.html("");
 });
 
 $('#Btn1').on('click', function() {
-
+test2.html(game.moves());
 });
 
 	
